@@ -1,7 +1,40 @@
 import type { Response } from "express";
+import type { BaseMessage } from "@langchain/core/messages";
 import textToSqlAgent from "../agents/textToSqlAgent.js";
 import { getDb } from "../db/db.js";
 import { initSse, sendSseEvent } from "../lib/sse.js";
+
+function getMessageText(message: BaseMessage | undefined): string {
+  if (!message) return "";
+
+  if (typeof message.text === "string" && message.text.length > 0) {
+    return message.text;
+  }
+
+  const { content } = message;
+  if (typeof content === "string") return content;
+
+  if (Array.isArray(content)) {
+    return content
+      .map((block) => {
+        if (typeof block === "string") return block;
+        if (
+          block &&
+          typeof block === "object" &&
+          "type" in block &&
+          block.type === "text" &&
+          "text" in block &&
+          typeof block.text === "string"
+        ) {
+          return block.text;
+        }
+        return "";
+      })
+      .join("");
+  }
+
+  return "";
+}
 
 export async function streamChatResponse(
   message: string,
@@ -63,11 +96,8 @@ export async function streamChatResponse(
     }
 
     const finalState = await run.output;
-    const lastMessage = finalState.messages.at(-1);
-    const content =
-      lastMessage && "content" in lastMessage
-        ? String(lastMessage.content)
-        : "";
+    const lastMessage = finalState.messages.at(-1) as BaseMessage | undefined;
+    const content = getMessageText(lastMessage);
 
     sendSseEvent(res, "done", { content });
   } catch (error) {

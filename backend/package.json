@@ -13,6 +13,8 @@
     "@langchain/classic": "^1.0.34",
     "@langchain/core": "^1.1.49",
     "@langchain/openai": "^1.4.7",
+    "@types/cors": "^2.8.19",
+    "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
     "langchain": "^1.4.5",
