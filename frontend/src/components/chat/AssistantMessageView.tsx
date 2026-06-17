@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import type { AssistantMessage } from "../../types/chat";
 import { ToolCallCard } from "./ToolCallCard";
+import { TypewriterMarkdown } from "./TypewriterMarkdown";
 
 interface AssistantMessageViewProps {
   message: AssistantMessage;
@@ -11,7 +12,7 @@ export function AssistantMessageView({ message }: AssistantMessageViewProps) {
   const [showAllAttempts, setShowAllAttempts] = useState(false);
   const isStreaming = message.streamStatus === "streaming";
   const isDone = message.streamStatus === "done";
-  const hasContent = message.content.length > 0;
+  const hasSummary = message.summary.length > 0;
   const { toolCalls } = message;
   const hasTools = toolCalls.length > 0;
   const hasMultipleAttempts = toolCalls.length > 1;
@@ -119,11 +120,16 @@ export function AssistantMessageView({ message }: AssistantMessageViewProps) {
           </div>
         )}
 
-        {(hasContent || isStreaming) && (
-          <div className="rounded-2xl rounded-tl-md border border-surface-500 bg-surface-300 px-4 py-3 text-sm leading-relaxed text-foreground">
-            {message.content}
-            {isStreaming && (
-              <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-brand align-middle" />
+        {(hasSummary || isStreaming) && (
+          <div className="rounded-2xl rounded-tl-md border border-surface-500 bg-surface-300 px-4 py-3 text-sm text-foreground">
+            {hasSummary ? (
+              <TypewriterMarkdown
+                text={message.summary}
+                messageId={message.id}
+                streamStatus={message.streamStatus}
+              />
+            ) : (
+              <span className="text-foreground-muted">Preparing summary…</span>
             )}
           </div>
         )}

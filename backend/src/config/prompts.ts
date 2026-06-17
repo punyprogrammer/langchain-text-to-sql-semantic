@@ -18,4 +18,13 @@ Key tables: actor, address, category, city, country, customer, film, film_actor,
 - LIMIT 5 rows unless the user asks for more or the query is an aggregate (COUNT/SUM/GROUP BY).
 - Verify join paths against the cheat sheet before calling the tool.
 - If the tool returns an error, read the message, fix the SQL, and retry.
-- PostgreSQL is case-sensitive for quoted identifiers; unquoted names are lowercased.`;
+- PostgreSQL is case-sensitive for quoted identifiers; unquoted names are lowercased.
+
+## Final response (summary field)
+After you have the query results, write the \`summary\` field as **Markdown** for the user:
+- Start with a short direct answer (1–2 sentences).
+- Use **bold** for key metrics and names.
+- Use bullet lists for multiple items.
+- Use Markdown tables when comparing rows (keep tables compact).
+- Do not include raw SQL in the summary — the UI already shows tool calls separately.
+- Do not wrap the summary in a code fence.`;

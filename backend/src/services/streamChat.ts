@@ -1,39 +1,24 @@
 import type { Response } from "express";
-import type { BaseMessage } from "@langchain/core/messages";
 import textToSqlAgent from "../agents/textToSqlAgent.js";
 import { getDb } from "../db/db.js";
 import { initSse, sendSseEvent } from "../lib/sse.js";
 
-function getMessageText(message: BaseMessage | undefined): string {
-  if (!message) return "";
+const SUMMARY_TOKEN_CHUNK_SIZE = 4;
 
-  if (typeof message.text === "string" && message.text.length > 0) {
-    return message.text;
+async function streamSummaryTokens(
+  summary: string,
+  res: Response,
+  signal: AbortSignal,
+): Promise<void> {
+  for (let i = 0; i < summary.length; i += SUMMARY_TOKEN_CHUNK_SIZE) {
+    if (signal.aborted) return;
+
+    sendSseEvent(res, "token", {
+      summary: summary.slice(i, i + SUMMARY_TOKEN_CHUNK_SIZE),
+    });
+
+    await new Promise<void>((resolve) => setImmediate(resolve));
   }
-
-  const { content } = message;
-  if (typeof content === "string") return content;
-
-  if (Array.isArray(content)) {
-    return content
-      .map((block) => {
-        if (typeof block === "string") return block;
-        if (
-          block &&
-          typeof block === "object" &&
-          "type" in block &&
-          block.type === "text" &&
-          "text" in block &&
-          typeof block.text === "string"
-        ) {
-          return block.text;
-        }
-        return "";
-      })
-      .join("");
-  }
-
-  return "";
 }
 
 export async function streamChatResponse(
@@ -51,15 +36,6 @@ export async function streamChatResponse(
       { messages: [{ role: "user", content: message }] },
       { version: "v3", context: { db }, signal },
     );
-
-    const streamMessages = async () => {
-      for await (const msg of run.messages) {
-        for await (const token of msg.text) {
-          if (signal.aborted) return;
-          sendSseEvent(res, "token", { content: token });
-        }
-      }
-    };
 
     const streamToolCalls = async () => {
       for await (const call of run.toolCalls) {
@@ -88,7 +64,7 @@ export async function streamChatResponse(
       }
     };
 
-    await Promise.all([streamMessages(), streamToolCalls()]);
+    await streamToolCalls();
 
     if (signal.aborted) {
       sendSseEvent(res, "cancelled", {});
@@ -96,10 +72,22 @@ export async function streamChatResponse(
     }
 
     const finalState = await run.output;
-    const lastMessage = finalState.messages.at(-1) as BaseMessage | undefined;
-    const content = getMessageText(lastMessage);
+    const structuredResponse = finalState.structuredResponse as
+      | { summary?: string }
+      | undefined;
+    const summary =
+      typeof structuredResponse?.summary === "string"
+        ? structuredResponse.summary
+        : "";
 
-    sendSseEvent(res, "done", { content });
+    await streamSummaryTokens(summary, res, signal);
+
+    if (signal.aborted) {
+      sendSseEvent(res, "cancelled", {});
+      return;
+    }
+
+    sendSseEvent(res, "done", { summary });
   } catch (error) {
     if (signal.aborted) {
       sendSseEvent(res, "cancelled", {});
