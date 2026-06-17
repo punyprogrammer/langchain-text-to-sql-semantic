@@ -21,7 +21,7 @@ export interface UserMessage {
 export interface AssistantMessage {
   id: string;
   role: "assistant";
-  content: string;
+  summary: string;
   toolCalls: ToolCall[];
   streamStatus: StreamStatus;
   error?: string;

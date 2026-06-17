@@ -61,10 +61,10 @@ function handleSseEvent(
       }));
 
     case "token": {
-      const token = toDisplayText(event.data.content) ?? "";
+      const token = toDisplayText(event.data.summary) ?? "";
       return updateAssistant(messages, assistantId, (message) => ({
         ...message,
-        content: message.content + token,
+        summary: message.summary + token,
         streamStatus: "streaming",
       }));
     }
@@ -117,10 +117,10 @@ function handleSseEvent(
     }
 
     case "done": {
-      const finalContent = toDisplayText(event.data.content);
+      const finalSummary = toDisplayText(event.data.summary);
       return updateAssistant(messages, assistantId, (message) => ({
         ...message,
-        content: finalContent ?? message.content,
+        summary: finalSummary ?? message.summary,
         streamStatus: "done",
       }));
     }
@@ -169,7 +169,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const assistantMessage: AssistantMessage = {
       id: assistantId,
       role: "assistant",
-      content: "",
+      summary: "",
       toolCalls: [],
       streamStatus: "idle" as StreamStatus,
       createdAt: Date.now(),
