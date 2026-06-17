@@ -1,0 +1,157 @@
+{
+  "database": "pagila",
+  "schema": "public",
+  "description": "Sample natural-language questions for testing the text-to-SQL agent against the Pagila DVD rental database.",
+  "questions": [
+    {
+      "id": "q001",
+      "difficulty": "easy",
+      "category": "aggregation",
+      "message": "How many films are in the database?"
+    },
+    {
+      "id": "q002",
+      "difficulty": "easy",
+      "category": "lookup",
+      "message": "List the names of all film categories."
+    },
+    {
+      "id": "q003",
+      "difficulty": "easy",
+      "category": "lookup",
+      "message": "What are the titles of the 5 longest films?"
+    },
+    {
+      "id": "q004",
+      "difficulty": "easy",
+      "category": "filter",
+      "message": "Show customers whose first name is Mary."
+    },
+    {
+      "id": "q005",
+      "difficulty": "easy",
+      "category": "aggregation",
+      "message": "How many customers are there in total?"
+    },
+    {
+      "id": "q006",
+      "difficulty": "medium",
+      "category": "join",
+      "message": "Which actors appear in the film Academy Dinosaur?"
+    },
+    {
+      "id": "q007",
+      "difficulty": "medium",
+      "category": "join",
+      "message": "What are the top 5 most-rented films by rental count?"
+    },
+    {
+      "id": "q008",
+      "difficulty": "medium",
+      "category": "aggregation",
+      "message": "What is the average rental duration in days?"
+    },
+    {
+      "id": "q009",
+      "difficulty": "medium",
+      "category": "join",
+      "message": "List the email addresses of customers who live in India."
+    },
+    {
+      "id": "q010",
+      "difficulty": "medium",
+      "category": "filter",
+      "message": "Which films are rated PG-13?"
+    },
+    {
+      "id": "q011",
+      "difficulty": "medium",
+      "category": "aggregation",
+      "message": "How many rentals were made at each store?"
+    },
+    {
+      "id": "q012",
+      "difficulty": "medium",
+      "category": "join",
+      "message": "Who are the staff members and which store do they work at?"
+    },
+    {
+      "id": "q013",
+      "difficulty": "medium",
+      "category": "aggregation",
+      "message": "What is the total payment amount per customer? Show the top 5 customers."
+    },
+    {
+      "id": "q014",
+      "difficulty": "medium",
+      "category": "join",
+      "message": "Which films are in the Comedy category?"
+    },
+    {
+      "id": "q015",
+      "difficulty": "medium",
+      "category": "filter",
+      "message": "List films released in 2006 with a replacement cost over 20."
+    },
+    {
+      "id": "q016",
+      "difficulty": "hard",
+      "category": "join",
+      "message": "Which 5 actors have appeared in the most films?"
+    },
+    {
+      "id": "q017",
+      "difficulty": "hard",
+      "category": "aggregation",
+      "message": "What is the total revenue by store?"
+    },
+    {
+      "id": "q018",
+      "difficulty": "hard",
+      "category": "subquery",
+      "message": "Which customers have never rented a film?"
+    },
+    {
+      "id": "q019",
+      "difficulty": "hard",
+      "category": "join",
+      "message": "For each language, how many films are available?"
+    },
+    {
+      "id": "q020",
+      "difficulty": "hard",
+      "category": "aggregation",
+      "message": "What are the 5 cities with the most customers?"
+    },
+    {
+      "id": "q021",
+      "difficulty": "hard",
+      "category": "join",
+      "message": "Which films have never been rented?"
+    },
+    {
+      "id": "q022",
+      "difficulty": "hard",
+      "category": "filter",
+      "message": "Show rentals that were returned late, where return date is after the due date."
+    },
+    {
+      "id": "q023",
+      "difficulty": "hard",
+      "category": "aggregation",
+      "message": "What is the average payment amount per month in 2007?"
+    },
+    {
+      "id": "q024",
+      "difficulty": "hard",
+      "category": "join",
+      "message": "Which staff member processed the most rentals?"
+    },
+    {
+      "id": "q025",
+      "difficulty": "hard",
+      "category": "multi-hop",
+      "message": "List the titles of films starring an actor named Penelope."
+    }
+  ]
+}
