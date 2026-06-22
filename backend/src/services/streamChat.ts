@@ -29,11 +29,12 @@ async function streamSummaryTokens(
 
 export async function streamChatResponse(
   message: string,
+  threadId: string,
   res: Response,
   signal: AbortSignal,
 ): Promise<void> {
   initSse(res);
-  sendSseEvent(res, "started", {});
+  sendSseEvent(res, "started", { thread_id: threadId });
 
   const usageTracker = {
     toolInput: 0,
@@ -47,7 +48,12 @@ export async function streamChatResponse(
 
     const run = await textToSqlAgent.streamEvents(
       { messages: [{ role: "user", content: message }] },
-      { version: "v3", context: { db }, signal },
+      {
+        version: "v3",
+        context: { db },
+        signal,
+        configurable: { thread_id: threadId },
+      },
     );
 
     await Promise.all([

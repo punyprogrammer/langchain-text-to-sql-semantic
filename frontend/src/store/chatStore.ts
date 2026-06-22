@@ -21,6 +21,7 @@ function createId(): string {
 
 interface ChatState {
   messages: ChatMessage[];
+  threadId: string | null;
   isStreaming: boolean;
   abortController: AbortController | null;
   sendMessage: (content: string) => Promise<void>;
@@ -193,12 +194,15 @@ function handleSseEvent(
 
 export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
+  threadId: null,
   isStreaming: false,
   abortController: null,
 
   sendMessage: async (content: string) => {
     const trimmed = content.trim();
     if (!trimmed || get().isStreaming) return;
+
+    const threadId = get().threadId ?? createId();
 
     const userMessage: ChatMessage = {
       id: createId(),
@@ -222,6 +226,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     set((state) => ({
       messages: [...state.messages, userMessage, assistantMessage],
+      threadId,
       isStreaming: true,
       abortController,
     }));
@@ -229,10 +234,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       await streamChat(
         trimmed,
+        threadId,
         (event) => {
-          set((state) => ({
-            messages: handleSseEvent(state.messages, assistantId, event),
-          }));
+          set((state) => {
+            const nextThreadId =
+              event.type === "started" &&
+              typeof event.data.thread_id === "string"
+                ? event.data.thread_id
+                : state.threadId;
+
+            return {
+              threadId: nextThreadId,
+              messages: handleSseEvent(state.messages, assistantId, event),
+            };
+          });
         },
         abortController.signal,
       );
@@ -267,6 +282,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   clearChat: () => {
     get().abortController?.abort();
-    set({ messages: [], isStreaming: false, abortController: null });
+    set({
+      messages: [],
+      threadId: null,
+      isStreaming: false,
+      abortController: null,
+    });
   },
 }));
