@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { useChatStore } from "../../store/chatStore";
 import type { AssistantMessage } from "../../types/chat";
+import { SqlApprovalCard } from "./SqlApprovalCard";
 import { ToolCallCard } from "./ToolCallCard";
 import { TokenUsageSummary } from "./TokenUsageSummary";
 import { TypewriterMarkdown } from "./TypewriterMarkdown";
@@ -11,7 +13,11 @@ interface AssistantMessageViewProps {
 
 export function AssistantMessageView({ message }: AssistantMessageViewProps) {
   const [showAllAttempts, setShowAllAttempts] = useState(false);
-  const isStreaming = message.streamStatus === "streaming";
+  const respondToApproval = useChatStore((state) => state.respondToApproval);
+  const isStreaming = useChatStore((state) => state.isStreaming);
+  const isAwaitingApproval = message.streamStatus === "awaiting_approval";
+  const isActiveStream =
+    message.streamStatus === "streaming" || isAwaitingApproval;
   const isDone = message.streamStatus === "done";
   const hasSummary = message.summary.length > 0;
   const { toolCalls } = message;
@@ -62,11 +68,14 @@ export function AssistantMessageView({ message }: AssistantMessageViewProps) {
             AI
           </div>
           <span>Assistant</span>
-          {isStreaming && (
+          {message.streamStatus === "streaming" && (
             <span className="inline-flex items-center gap-1 text-info">
               <Loader2 className="h-3 w-3 animate-spin" />
               Streaming
             </span>
+          )}
+          {isAwaitingApproval && (
+            <span className="text-warning">Awaiting approval</span>
           )}
           {message.streamStatus === "done" && (
             <span className="text-brand">Complete</span>
@@ -78,6 +87,15 @@ export function AssistantMessageView({ message }: AssistantMessageViewProps) {
             <span className="text-warning">Cancelled</span>
           )}
         </div>
+
+        {message.pendingApproval && (
+          <SqlApprovalCard
+            approval={message.pendingApproval}
+            disabled={isStreaming}
+            onApprove={() => void respondToApproval(message.id, "approve")}
+            onReject={() => void respondToApproval(message.id, "reject")}
+          />
+        )}
 
         {hasTools && (
           <div className="space-y-2">
@@ -121,11 +139,11 @@ export function AssistantMessageView({ message }: AssistantMessageViewProps) {
           </div>
         )}
 
-        {(message.usage.combined.total > 0 || isStreaming) && (
+        {(message.usage.combined.total > 0 || isActiveStream) && (
           <TokenUsageSummary usage={message.usage} />
         )}
 
-        {(hasSummary || isStreaming) && (
+        {(hasSummary || message.streamStatus === "streaming") && (
           <div className="rounded-2xl rounded-tl-md border border-surface-500 bg-surface-300 px-4 py-3 text-sm text-foreground">
             {hasSummary ? (
               <TypewriterMarkdown
