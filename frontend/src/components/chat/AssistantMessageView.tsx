@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import type { AssistantMessage } from "../../types/chat";
 import { ToolCallCard } from "./ToolCallCard";
+import { TokenUsageSummary } from "./TokenUsageSummary";
 import { TypewriterMarkdown } from "./TypewriterMarkdown";
 
 interface AssistantMessageViewProps {
@@ -118,6 +119,10 @@ export function AssistantMessageView({ message }: AssistantMessageViewProps) {
               </p>
             )}
           </div>
+        )}
+
+        {(message.usage.combined.total > 0 || isStreaming) && (
+          <TokenUsageSummary usage={message.usage} />
         )}
 
         {(hasSummary || isStreaming) && (

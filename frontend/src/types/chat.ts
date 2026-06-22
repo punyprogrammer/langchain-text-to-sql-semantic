@@ -1,5 +1,12 @@
 export type ToolCallStatus = "running" | "success" | "error";
 
+export interface ToolCallProgress {
+  label: string;
+  current: number;
+  total: number;
+  item?: string;
+}
+
 export interface ToolCall {
   callId: string;
   name: string;
@@ -7,6 +14,21 @@ export interface ToolCall {
   output?: unknown;
   error?: string;
   status: ToolCallStatus;
+  progress?: ToolCallProgress;
+  inputTokens?: number;
+  outputTokens?: number;
+}
+
+export interface TokenCounts {
+  input: number;
+  output: number;
+  total: number;
+}
+
+export interface LoopTokenUsage {
+  tool: TokenCounts;
+  llm: TokenCounts;
+  combined: TokenCounts;
 }
 
 export type StreamStatus = "idle" | "streaming" | "done" | "error" | "cancelled";
@@ -25,6 +47,7 @@ export interface AssistantMessage {
   toolCalls: ToolCall[];
   streamStatus: StreamStatus;
   error?: string;
+  usage: LoopTokenUsage;
   createdAt: number;
 }
 
@@ -34,8 +57,10 @@ export type SseEventType =
   | "started"
   | "token"
   | "tool_start"
+  | "tool_progress"
   | "tool_result"
   | "tool_error"
+  | "llm_usage"
   | "done"
   | "error"
   | "cancelled";
