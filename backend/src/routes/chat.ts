@@ -1,9 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { streamChatResponse } from "../services/streamChat.js";
 
 const chatRequestSchema = z.object({
   message: z.string().trim().min(1, "message is required"),
+  thread_id: z.string().uuid().optional(),
 });
 
 const router = Router();
@@ -27,8 +29,11 @@ router.post("/", async (req, res) => {
     }
   });
 
+  const threadId = parsed.data.thread_id ?? randomUUID();
+
   await streamChatResponse(
     parsed.data.message,
+    threadId,
     res,
     abortController.signal,
   );

@@ -1,8 +1,11 @@
 import * as z from "zod";
 import { createAgent } from "langchain";
+import { MemorySaver } from "@langchain/langgraph-checkpoint";
 import { SqlDatabase } from "@langchain/classic/sql_db";
 import { executeSqlTool } from "../tools/tools.js";
 import { TEXT_TO_SQL_PROMPT } from "../config/prompts.js";
+
+const checkpointer = new MemorySaver();
 
 const contextSchema = z.object({
   db: z.custom<SqlDatabase>((val) => val instanceof SqlDatabase),
@@ -22,5 +25,6 @@ const textToSqlAgent = createAgent({
   systemPrompt: TEXT_TO_SQL_PROMPT,
   contextSchema,
   responseFormat: agentResponseSchema,
+  checkpointer,
 });
 export default textToSqlAgent;

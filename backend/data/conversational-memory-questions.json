@@ -1,0 +1,197 @@
+{
+  "database": "pagila",
+  "schema": "public",
+  "description": "Multi-turn conversational memory tests for the text-to-SQL agent. Each conversation must be run in a single thread (same thread_id for every turn). Follow-up turns rely on prior context and should not be answerable without memory of earlier messages.",
+  "conversations": [
+    {
+      "id": "mem001",
+      "title": "Implicit topic continuation",
+      "difficulty": "easy",
+      "category": "context-carry",
+      "turns": [
+        {
+          "turn": 1,
+          "message": "How many films are in the database?",
+          "memoryTest": "Establishes baseline count query"
+        },
+        {
+          "turn": 2,
+          "message": "And how many customers are there?",
+          "memoryTest": "Should understand 'And' as a follow-up in the same analytical session without re-explaining the database"
+        }
+      ]
+    },
+    {
+      "id": "mem002",
+      "title": "Pronoun reference to prior result",
+      "difficulty": "medium",
+      "category": "anaphora",
+      "turns": [
+        {
+          "turn": 1,
+          "message": "What are the top 5 most-rented films by rental count?",
+          "memoryTest": "Returns ranked film list with rental counts"
+        },
+        {
+          "turn": 2,
+          "message": "Which actors appear in the first one?",
+          "memoryTest": "Must resolve 'the first one' to the top film from turn 1 without the user naming it again"
+        }
+      ]
+    },
+    {
+      "id": "mem003",
+      "title": "Refine prior filter",
+      "difficulty": "medium",
+      "category": "filter-refinement",
+      "turns": [
+        {
+          "turn": 1,
+          "message": "List the email addresses of customers who live in India.",
+          "memoryTest": "Returns Indian customer emails"
+        },
+        {
+          "turn": 2,
+          "message": "How many of those customers have made at least one payment?",
+          "memoryTest": "Must scope 'those customers' to the India cohort from turn 1"
+        }
+      ]
+    },
+    {
+      "id": "mem004",
+      "title": "Compare prior aggregation",
+      "difficulty": "medium",
+      "category": "comparison",
+      "turns": [
+        {
+          "turn": 1,
+          "message": "What is the total revenue by store?",
+          "memoryTest": "Returns per-store revenue totals"
+        },
+        {
+          "turn": 2,
+          "message": "Which store earned more?",
+          "memoryTest": "Must compare the two stores from turn 1 results without re-asking for revenue"
+        }
+      ]
+    },
+    {
+      "id": "mem005",
+      "title": "Subset of prior listing",
+      "difficulty": "medium",
+      "category": "subset",
+      "turns": [
+        {
+          "turn": 1,
+          "message": "Which films are rated PG-13?",
+          "memoryTest": "Returns PG-13 film set (potentially large)"
+        },
+        {
+          "turn": 2,
+          "message": "Show me just 3 titles from that list.",
+          "memoryTest": "Must limit to PG-13 films discussed in turn 1, not arbitrary films"
+        }
+      ]
+    },
+    {
+      "id": "mem006",
+      "title": "Count follow-up on prior answer",
+      "difficulty": "easy",
+      "category": "count-follow-up",
+      "turns": [
+        {
+          "turn": 1,
+          "message": "Which customers have never rented a film?",
+          "memoryTest": "Returns non-renting customers"
+        },
+        {
+          "turn": 2,
+          "message": "How many is that?",
+          "memoryTest": "Must count the same customer set from turn 1"
+        }
+      ]
+    },
+    {
+      "id": "mem007",
+      "title": "Drill into prior metric",
+      "difficulty": "hard",
+      "category": "metric-drill-down",
+      "turns": [
+        {
+          "turn": 1,
+          "message": "Which 5 actors have appeared in the most films?",
+          "memoryTest": "Returns top actors with film counts"
+        },
+        {
+          "turn": 2,
+          "message": "What is the film count for the top actor?",
+          "memoryTest": "Must reference the #1 actor from turn 1 and return their count"
+        },
+        {
+          "turn": 3,
+          "message": "List three films that actor starred in.",
+          "memoryTest": "Must resolve 'that actor' to the same person across turns 1–2"
+        }
+      ]
+    },
+    {
+      "id": "mem008",
+      "title": "Category then join",
+      "difficulty": "hard",
+      "category": "multi-hop",
+      "turns": [
+        {
+          "turn": 1,
+          "message": "Which films are in the Comedy category?",
+          "memoryTest": "Returns comedy films"
+        },
+        {
+          "turn": 2,
+          "message": "Among those, which ones have never been rented?",
+          "memoryTest": "Must intersect comedy films from turn 1 with zero rentals"
+        }
+      ]
+    },
+    {
+      "id": "mem009",
+      "title": "Staff context handoff",
+      "difficulty": "medium",
+      "category": "entity-reference",
+      "turns": [
+        {
+          "turn": 1,
+          "message": "Which staff member processed the most rentals?",
+          "memoryTest": "Identifies top staff member by rental count"
+        },
+        {
+          "turn": 2,
+          "message": "Which store does that person work at?",
+          "memoryTest": "Must resolve 'that person' to the staff member from turn 1"
+        }
+      ]
+    },
+    {
+      "id": "mem010",
+      "title": "Three-turn analytical thread",
+      "difficulty": "hard",
+      "category": "multi-turn-analysis",
+      "turns": [
+        {
+          "turn": 1,
+          "message": "What are the 5 cities with the most customers?",
+          "memoryTest": "Returns city ranking by customer count"
+        },
+        {
+          "turn": 2,
+          "message": "What country is the top city in?",
+          "memoryTest": "Must resolve 'the top city' from turn 1"
+        },
+        {
+          "turn": 3,
+          "message": "How many other cities in that country appear in the list?",
+          "memoryTest": "Must use both the top city and the ranked list from prior turns"
+        }
+      ]
+    }
+  ]
+}
