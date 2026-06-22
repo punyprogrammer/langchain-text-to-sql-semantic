@@ -2,6 +2,7 @@ import "./config/env.js";
 import express from "express";
 import cors from "cors";
 import chatRouter from "./routes/chat.js";
+import dataQualityRouter from "./routes/dataQuality.js";
 import { closeDb } from "./db/db.js";
 
 const app = express();
@@ -19,6 +20,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/chat", chatRouter);
+app.use("/data-quality", dataQualityRouter);
 
 const server = app.listen(port, () => {
   console.log(`Server listening on http://localhost:${port}`);

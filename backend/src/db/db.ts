@@ -49,6 +49,18 @@ export function getDb(): Promise<SqlDatabase> {
   return dbPromise;
 }
 
+export async function runQuery<T extends Record<string, unknown> = Record<string, unknown>>(
+  sql: string,
+  parameters: unknown[] = [],
+): Promise<T[]> {
+  const db = await getDb();
+  if (!dataSource?.isInitialized) {
+    throw new Error("Database is not initialized");
+  }
+
+  return dataSource.query(sql, parameters) as Promise<T[]>;
+}
+
 export async function closeDb(): Promise<void> {
   if (dataSource?.isInitialized) {
     await dataSource.destroy();
