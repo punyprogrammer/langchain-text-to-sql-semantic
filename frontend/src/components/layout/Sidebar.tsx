@@ -1,12 +1,21 @@
 import {
+  ClipboardCheck,
   MessageSquareText,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
-import { useUiStore } from "../../store/chatStore";
+import type { AppView } from "../../store/uiStore";
+import { useUiStore } from "../../store/uiStore";
+
+const navItems: { id: AppView; label: string; icon: typeof MessageSquareText }[] =
+  [
+    { id: "chat", label: "Chatbot", icon: MessageSquareText },
+    { id: "data-quality", label: "Data Quality", icon: ClipboardCheck },
+  ];
 
 export function Sidebar() {
-  const { sidebarCollapsed, toggleSidebar } = useUiStore();
+  const { sidebarCollapsed, activeView, toggleSidebar, setActiveView } =
+    useUiStore();
 
   return (
     <aside
@@ -37,16 +46,28 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className="flex-1 p-2">
-        <a
-          href="#"
-          className={`flex items-center gap-3 rounded-lg bg-brand-muted px-3 py-2 text-sm font-medium text-brand ${
-            sidebarCollapsed ? "justify-center px-2" : ""
-          }`}
-        >
-          <MessageSquareText className="h-4 w-4 shrink-0" />
-          {!sidebarCollapsed && <span>Chatbot</span>}
-        </a>
+      <nav className="flex-1 space-y-1 p-2">
+        {navItems.map(({ id, label, icon: Icon }) => {
+          const isActive = activeView === id;
+
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setActiveView(id)}
+              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                sidebarCollapsed ? "justify-center px-2" : ""
+              } ${
+                isActive
+                  ? "bg-brand-muted text-brand"
+                  : "text-foreground-muted hover:bg-surface-400 hover:text-foreground"
+              }`}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {!sidebarCollapsed && <span>{label}</span>}
+            </button>
+          );
+        })}
       </nav>
 
       {!sidebarCollapsed && (

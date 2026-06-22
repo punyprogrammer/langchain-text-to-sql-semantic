@@ -1,5 +1,12 @@
 import { create } from "zustand";
 import { streamChat } from "../api/chat";
+import {
+  applyToolTokenEvent,
+  applyUsageEvent,
+  createEmptyLoopUsage,
+  logLoopUsage,
+  logToolTokens,
+} from "../lib/tokenUsage";
 import type {
   AssistantMessage,
   ChatMessage,
@@ -10,11 +17,6 @@ import type {
 
 function createId(): string {
   return crypto.randomUUID();
-}
-
-interface UiState {
-  sidebarCollapsed: boolean;
-  toggleSidebar: () => void;
 }
 
 interface ChatState {
@@ -75,54 +77,100 @@ function handleSseEvent(
         name: String(event.data.name ?? "tool"),
         input: event.data.input,
         status: "running",
+        inputTokens: Number(event.data.inputTokens ?? 0) || undefined,
       };
+
+      logToolTokens(
+        "chat",
+        toolCall.name,
+        toolCall.callId,
+        toolCall.inputTokens,
+      );
 
       return updateAssistant(messages, assistantId, (message) => ({
         ...message,
         toolCalls: [...message.toolCalls, toolCall],
         streamStatus: "streaming",
+        usage: applyUsageEvent(message.usage, event),
       }));
     }
 
     case "tool_result": {
       const callId = String(event.data.callId);
-      return updateAssistant(messages, assistantId, (message) => ({
-        ...message,
-        toolCalls: message.toolCalls.map((tool) =>
-          tool.callId === callId
-            ? {
-                ...tool,
-                output: event.data.output,
-                status: "success",
-              }
-            : tool,
-        ),
-      }));
+      const outputTokens = Number(event.data.outputTokens ?? 0) || undefined;
+
+      return updateAssistant(messages, assistantId, (message) => {
+        const toolCalls = applyToolTokenEvent(
+          message.toolCalls.map((tool) =>
+            tool.callId === callId
+              ? {
+                  ...tool,
+                  output: event.data.output,
+                  status: "success" as const,
+                }
+              : tool,
+          ),
+          event,
+        );
+
+        const tool = toolCalls.find((entry) => entry.callId === callId);
+        if (tool) {
+          logToolTokens(
+            "chat",
+            tool.name,
+            tool.callId,
+            tool.inputTokens,
+            outputTokens,
+          );
+        }
+
+        return {
+          ...message,
+          toolCalls,
+          usage: applyUsageEvent(message.usage, event),
+        };
+      });
     }
 
     case "tool_error": {
       const callId = String(event.data.callId);
+
       return updateAssistant(messages, assistantId, (message) => ({
         ...message,
-        toolCalls: message.toolCalls.map((tool) =>
-          tool.callId === callId
-            ? {
-                ...tool,
-                error: String(event.data.message ?? "Tool failed"),
-                status: "error",
-              }
-            : tool,
+        toolCalls: applyToolTokenEvent(
+          message.toolCalls.map((tool) =>
+            tool.callId === callId
+              ? {
+                  ...tool,
+                  error: String(event.data.message ?? "Tool failed"),
+                  status: "error" as const,
+                }
+              : tool,
+          ),
+          event,
         ),
+        usage: applyUsageEvent(message.usage, event),
       }));
     }
 
-    case "done": {
-      const finalSummary = toDisplayText(event.data.summary);
+    case "llm_usage":
       return updateAssistant(messages, assistantId, (message) => ({
         ...message,
-        summary: finalSummary ?? message.summary,
-        streamStatus: "done",
+        usage: applyUsageEvent(message.usage, event),
       }));
+
+    case "done": {
+      const finalSummary = toDisplayText(event.data.summary);
+      return updateAssistant(messages, assistantId, (message) => {
+        const usage = applyUsageEvent(message.usage, event);
+        logLoopUsage("chat", usage);
+        return {
+          ...message,
+          summary: finalSummary ?? message.summary,
+          streamStatus: "done",
+          usage,
+        };
+      });
     }
 
     case "error":
@@ -142,12 +190,6 @@ function handleSseEvent(
       return messages;
   }
 }
-
-export const useUiStore = create<UiState>((set) => ({
-  sidebarCollapsed: false,
-  toggleSidebar: () =>
-    set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-}));
 
 export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
@@ -172,6 +214,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       summary: "",
       toolCalls: [],
       streamStatus: "idle" as StreamStatus,
+      usage: createEmptyLoopUsage(),
       createdAt: Date.now(),
     };
 
