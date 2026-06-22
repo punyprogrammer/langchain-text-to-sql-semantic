@@ -1,8 +1,11 @@
 import z from "zod";
 import { tool } from "langchain";
+import { validateAndNormalizeReadOnlySql } from "../lib/sqlSafety.js";
+
 export const executeSqlTool = tool(
   ({ sql }: { sql: string }, runtime) => {
-    return runtime.context.db.run(sql);
+    const normalizedSql = validateAndNormalizeReadOnlySql(sql);
+    return runtime.context.db.run(normalizedSql);
   },
   {
     name: "execute_sql",

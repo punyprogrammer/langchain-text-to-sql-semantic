@@ -1,9 +1,15 @@
 import type { Response } from "express";
 import textToSqlAgent from "../agents/textToSqlAgent.js";
 import { getDb } from "../db/db.js";
+import {
+  buildLoopUsage,
+  streamToolCallsWithUsage,
+  trackLlmMessageUsageWithEvents,
+} from "../lib/streamAgentLoop.js";
 import { initSse, sendSseEvent } from "../lib/sse.js";
 
 const SUMMARY_TOKEN_CHUNK_SIZE = 4;
+const LOG_TAG = "chat";
 
 async function streamSummaryTokens(
   summary: string,
@@ -29,6 +35,13 @@ export async function streamChatResponse(
   initSse(res);
   sendSseEvent(res, "started", {});
 
+  const usageTracker = {
+    toolInput: 0,
+    toolOutput: 0,
+    llmInput: 0,
+    llmOutput: 0,
+  };
+
   try {
     const db = await getDb();
 
@@ -37,34 +50,16 @@ export async function streamChatResponse(
       { version: "v3", context: { db }, signal },
     );
 
-    const streamToolCalls = async () => {
-      for await (const call of run.toolCalls) {
-        if (signal.aborted) return;
-
-        sendSseEvent(res, "tool_start", {
-          name: call.name,
-          callId: call.callId,
-          input: call.input,
-        });
-
-        try {
-          const output = await call.output;
-          sendSseEvent(res, "tool_result", {
-            name: call.name,
-            callId: call.callId,
-            output,
-          });
-        } catch (error) {
-          sendSseEvent(res, "tool_error", {
-            name: call.name,
-            callId: call.callId,
-            message: error instanceof Error ? error.message : "Tool failed",
-          });
-        }
-      }
-    };
-
-    await streamToolCalls();
+    await Promise.all([
+      streamToolCallsWithUsage({
+        tag: LOG_TAG,
+        res,
+        signal,
+        toolCalls: run.toolCalls,
+        tracker: usageTracker,
+      }),
+      trackLlmMessageUsageWithEvents(LOG_TAG, run.messages, res, usageTracker),
+    ]);
 
     if (signal.aborted) {
       sendSseEvent(res, "cancelled", {});
@@ -87,7 +82,10 @@ export async function streamChatResponse(
       return;
     }
 
-    sendSseEvent(res, "done", { summary });
+    sendSseEvent(res, "done", {
+      summary,
+      usage: buildLoopUsage(usageTracker),
+    });
   } catch (error) {
     if (signal.aborted) {
       sendSseEvent(res, "cancelled", {});
