@@ -4,6 +4,7 @@ import { MemorySaver } from "@langchain/langgraph-checkpoint";
 import { SqlDatabase } from "@langchain/classic/sql_db";
 import { executeSqlTool } from "../tools/tools.js";
 import { TEXT_TO_SQL_PROMPT } from "../config/prompts.js";
+import { sqlApprovalMiddleware } from "../config/hitl.js";
 
 const checkpointer = new MemorySaver();
 
@@ -26,5 +27,6 @@ const textToSqlAgent = createAgent({
   contextSchema,
   responseFormat: agentResponseSchema,
   checkpointer,
+  middleware: [sqlApprovalMiddleware],
 });
 export default textToSqlAgent;

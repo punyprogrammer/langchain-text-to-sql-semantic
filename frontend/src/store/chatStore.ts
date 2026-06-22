@@ -10,6 +10,10 @@ import {
 import type {
   AssistantMessage,
   ChatMessage,
+  HitlActionRequest,
+  HitlDecision,
+  HitlReviewConfig,
+  PendingApproval,
   SseEvent,
   StreamStatus,
   ToolCall,
@@ -25,6 +29,10 @@ interface ChatState {
   isStreaming: boolean;
   abortController: AbortController | null;
   sendMessage: (content: string) => Promise<void>;
+  respondToApproval: (
+    assistantId: string,
+    decision: HitlDecision,
+  ) => Promise<void>;
   stopStreaming: () => void;
   clearChat: () => void;
 }
@@ -51,6 +59,18 @@ function toDisplayText(value: unknown): string | undefined {
   return undefined;
 }
 
+function parsePendingApproval(data: Record<string, unknown>): PendingApproval {
+  return {
+    interruptId: String(data.interruptId ?? ""),
+    actionRequests: Array.isArray(data.actionRequests)
+      ? (data.actionRequests as HitlActionRequest[])
+      : [],
+    reviewConfigs: Array.isArray(data.reviewConfigs)
+      ? (data.reviewConfigs as HitlReviewConfig[])
+      : [],
+  };
+}
+
 function handleSseEvent(
   messages: ChatMessage[],
   assistantId: string,
@@ -61,6 +81,7 @@ function handleSseEvent(
       return updateAssistant(messages, assistantId, (message) => ({
         ...message,
         streamStatus: "streaming",
+        pendingApproval: undefined,
       }));
 
     case "token": {
@@ -160,6 +181,29 @@ function handleSseEvent(
         usage: applyUsageEvent(message.usage, event),
       }));
 
+    case "approval_required":
+      return updateAssistant(messages, assistantId, (message) => ({
+        ...message,
+        pendingApproval: parsePendingApproval(event.data),
+        streamStatus: "awaiting_approval",
+      }));
+
+    case "awaiting_approval":
+      return updateAssistant(messages, assistantId, (message) => ({
+        ...message,
+        streamStatus: "awaiting_approval",
+      }));
+
+    case "rejected": {
+      const rejectionMessage = toDisplayText(event.data.message);
+      return updateAssistant(messages, assistantId, (message) => ({
+        ...message,
+        pendingApproval: undefined,
+        summary: rejectionMessage ?? message.summary,
+        streamStatus: "done",
+      }));
+    }
+
     case "done": {
       const finalSummary = toDisplayText(event.data.summary);
       return updateAssistant(messages, assistantId, (message) => {
@@ -168,6 +212,7 @@ function handleSseEvent(
         return {
           ...message,
           summary: finalSummary ?? message.summary,
+          pendingApproval: undefined,
           streamStatus: "done",
           usage,
         };
@@ -190,6 +235,41 @@ function handleSseEvent(
     default:
       return messages;
   }
+}
+
+async function runAssistantStream(
+  assistantId: string,
+  options: {
+    message?: string;
+    threadId: string;
+    hitlDecision?: HitlDecision;
+    signal: AbortSignal;
+  },
+  set: (
+    partial:
+      | Partial<ChatState>
+      | ((state: ChatState) => Partial<ChatState> | ChatState),
+  ) => void,
+): Promise<void> {
+  await streamChat({
+    message: options.message,
+    threadId: options.threadId,
+    hitlDecision: options.hitlDecision,
+    signal: options.signal,
+    onEvent: (event) => {
+      set((state) => {
+        const nextThreadId =
+          event.type === "started" && typeof event.data.thread_id === "string"
+            ? event.data.thread_id
+            : state.threadId;
+
+        return {
+          threadId: nextThreadId,
+          messages: handleSseEvent(state.messages, assistantId, event),
+        };
+      });
+    },
+  });
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -232,24 +312,68 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     try {
-      await streamChat(
-        trimmed,
-        threadId,
-        (event) => {
-          set((state) => {
-            const nextThreadId =
-              event.type === "started" &&
-              typeof event.data.thread_id === "string"
-                ? event.data.thread_id
-                : state.threadId;
+      await runAssistantStream(
+        assistantId,
+        { message: trimmed, threadId, signal: abortController.signal },
+        set,
+      );
+    } catch (error) {
+      if (abortController.signal.aborted) {
+        set((state) => ({
+          messages: updateAssistant(state.messages, assistantId, (message) => ({
+            ...message,
+            streamStatus: "cancelled",
+          })),
+        }));
+      } else {
+        const message =
+          error instanceof Error ? error.message : "Request failed";
+        set((state) => ({
+          messages: updateAssistant(state.messages, assistantId, (msg) => ({
+            ...msg,
+            streamStatus: "error",
+            error: message,
+          })),
+        }));
+      }
+    } finally {
+      set({ isStreaming: false, abortController: null });
+    }
+  },
 
-            return {
-              threadId: nextThreadId,
-              messages: handleSseEvent(state.messages, assistantId, event),
-            };
-          });
+  respondToApproval: async (assistantId: string, decision: HitlDecision) => {
+    const { threadId, isStreaming } = get();
+    if (!threadId || isStreaming) return;
+
+    const assistant = get().messages.find(
+      (message): message is AssistantMessage =>
+        message.id === assistantId && message.role === "assistant",
+    );
+
+    if (
+      !assistant ||
+      assistant.streamStatus !== "awaiting_approval" ||
+      !assistant.pendingApproval
+    ) {
+      return;
+    }
+
+    const abortController = new AbortController();
+
+    set({
+      isStreaming: true,
+      abortController,
+    });
+
+    try {
+      await runAssistantStream(
+        assistantId,
+        {
+          threadId,
+          hitlDecision: decision,
+          signal: abortController.signal,
         },
-        abortController.signal,
+        set,
       );
     } catch (error) {
       if (abortController.signal.aborted) {

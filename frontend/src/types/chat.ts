@@ -1,5 +1,24 @@
 export type ToolCallStatus = "running" | "success" | "error";
 
+export interface HitlActionRequest {
+  name: string;
+  args: Record<string, unknown>;
+  description?: string;
+}
+
+export interface HitlReviewConfig {
+  actionName: string;
+  allowedDecisions: Array<"approve" | "edit" | "reject">;
+}
+
+export interface PendingApproval {
+  interruptId: string;
+  actionRequests: HitlActionRequest[];
+  reviewConfigs: HitlReviewConfig[];
+}
+
+export type HitlDecision = "approve" | "reject";
+
 export interface ToolCallProgress {
   label: string;
   current: number;
@@ -31,7 +50,13 @@ export interface LoopTokenUsage {
   combined: TokenCounts;
 }
 
-export type StreamStatus = "idle" | "streaming" | "done" | "error" | "cancelled";
+export type StreamStatus =
+  | "idle"
+  | "streaming"
+  | "awaiting_approval"
+  | "done"
+  | "error"
+  | "cancelled";
 
 export interface UserMessage {
   id: string;
@@ -47,6 +72,7 @@ export interface AssistantMessage {
   toolCalls: ToolCall[];
   streamStatus: StreamStatus;
   error?: string;
+  pendingApproval?: PendingApproval;
   usage: LoopTokenUsage;
   createdAt: number;
 }
@@ -61,6 +87,9 @@ export type SseEventType =
   | "tool_result"
   | "tool_error"
   | "llm_usage"
+  | "approval_required"
+  | "awaiting_approval"
+  | "rejected"
   | "done"
   | "error"
   | "cancelled";
